@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ThunderScore ⚡</title>
+<style>
+body { margin:0; font-family:Arial; background:#0d1117; color:white; }
+header { text-align:center; padding:15px; font-size:22px; background:#111827; border-bottom:2px solid #00ffcc; }
+.topbar { text-align:center; padding:10px; }
+select { padding:10px; border-radius:5px; border:none; }
+.container { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:15px; padding:15px; }
+.match { background:#161b22; border-radius:10px; padding:15px; box-shadow:0 0 10px rgba(0,255,200,0.2); cursor:pointer; }
+.teams { display:flex; justify-content:space-between; align-items:center; }
+.scorebox { text-align:center; font-size:28px; margin:10px 0; color:#00ffcc; }
+.time { text-align:center; font-size:14px; color:#aaa; }
+#popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0a0f1c; overflow:auto; padding:20px; }
+button { padding:10px; margin-bottom:10px; border:none; border-radius:5px; background:#00ffcc; color:black; cursor:pointer; }
+button:hover { background:#00ddaa; }
+</style>
+</head>
+<body>
+
+<header>⚡ ThunderScore</header>
+
+<div class="topbar">
+  <select id="leagueSelect" onchange="changeLeague()">
+    <option value="all">All Leagues</option>
+  </select>
+</div>
+
+<div class="container" id="matches">Loading...</div>
+
+<!-- POPUP -->
+<div id="popup">
+  <button onclick="closePopup()">⬅ Back</button>
+  <div id="details"></div>
+</div>
+
+<script>
+const API_KEY = "47b8ff13992451541986c461109024f2";
+let currentLeague = "all";
+
+// Fetch all leagues for the dropdown
+async function loadLeagues() {
+  const res = await fetch("https://v3.football.api-sports.io/leagues", {
+    headers: { "x-apisports-key": API_KEY }
+  });
+  const data = await res.json();
+  const select = document.getElementById("leagueSelect");
+  data.response.forEach(l => {
+    select.innerHTML += `<option value="${l.league.id}">${l.league.name} (${l.country.name})</option>`;
+  });
+}
+
+loadLeagues();
+
+function changeLeague() {
+  currentLeague = document.getElementById("leagueSelect").value;
+  loadMatches();
+}
+
+async function loadMatches() {
+  let url = currentLeague === "all"
+    ? "https://v3.football.api-sports.io/fixtures?live=all"
+    : `https://v3.football.api-sports.io/fixtures?live=all&league=${currentLeague}`;
+
+  const res = await fetch(url, { headers: { "x-apisports-key": API_KEY } });
+  const data = await res.json();
+  displayMatches(data.response);
+}
+
+function displayMatches(matches) {
+  const container = document.getElementById("matches");
+  container.innerHTML = "";
+  if(matches.length === 0) { container.innerHTML = "No live matches"; return; }
+
+  matches.forEach(match => {
+    const home = match.teams.home.name;
+    const away = match.teams.away.name;
+    const score = match.goals.home + " - " + match.goals.away;
+    const time = match.fixture.status.elapsed + "'";
+
+    container.innerHTML += `
+      <div class="match" onclick="showDetails(${match.fixture.id})">
+        <div class="teams">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <img src="${match.teams.home.logo}" width="30">
+            <span>${home}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span>${away}</span>
+            <img src="${match.teams.away.logo}" width="30">
+          </div>
+        </div>
+        <div class="scorebox">${score}</div>
+        <div class="time">${time}</div>
+      </div>
+    `;
+  });
+}
+
+async function showDetails(fixtureId) {
+  document.getElementById("popup").style.display = "block";
+  const res = await fetch(`https://v3.football.api-sports.io/fixtures/lineups?fixture=${fixtureId}`, { headers: { "x-apisports-key": API_KEY } });
+  const data = await res.json();
+  displayPlayers(data.response);
+}
+
+function displayPlayers(lineups) {
+  const container = document.getElementById("details");
+  container.innerHTML = "";
+  if(lineups.length === 0){ container.innerHTML = "No lineup data"; return; }
+
+  lineups.forEach(team => {
+    container.innerHTML += `
+      <div style="margin-bottom:30px; background:#111827; padding:15px; border-radius:10px;">
+        <h2 style="color:#00ffcc;">${team.team.name}</h2>
+        <p>Formation: ${team.formation}</p>
+        <h3>⚽ Starting XI</h3>
+        ${team.startXI.map(p => `<div>• ${p.player.name}</div>`).join("")}
+        <h3>🔁 Substitutes</h3>
+        ${team.substitutes.map(p => `<div>• ${p.player.name}</div>`).join("")}
+      </div>
+    `;
+  });
+}
+
+function closePopup() { document.getElementById("popup").style.display = "none"; }
+
+// First load
+loadMatches();
+setInterval(loadMatches, 60000);
+</script>
+</body>
+</html>
