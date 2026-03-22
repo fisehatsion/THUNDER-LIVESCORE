@@ -6,6 +6,7 @@
 <style>
 body { margin:0; font-family:Arial; background:#0d1117; color:white; }
 header { text-align:center; padding:15px; font-size:22px; background:#111827; border-bottom:2px solid #00ffcc; }
+.note { text-align:center; background:#111; padding:10px; font-size:16px; color:#00ffcc; border-bottom:1px solid #00ffcc; }
 .topbar { text-align:center; padding:10px; }
 select { padding:10px; border-radius:5px; border:none; }
 .container { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:15px; padding:15px; }
@@ -21,6 +22,7 @@ button:hover { background:#00ddaa; }
 <body>
 
 <header>⚡ ThunderScore</header>
+<div class="note">Here is your website: Yafa</div>
 
 <div class="topbar">
   <select id="leagueSelect" onchange="changeLeague()">
@@ -40,15 +42,20 @@ button:hover { background:#00ddaa; }
 const API_KEY = "47b8ff13992451541986c461109024f2";
 let currentLeague = "all";
 
-// Fetch all leagues for the dropdown
+// Load all leagues dynamically
 async function loadLeagues() {
   const res = await fetch("https://v3.football.api-sports.io/leagues", {
     headers: { "x-apisports-key": API_KEY }
   });
   const data = await res.json();
   const select = document.getElementById("leagueSelect");
+
+  select.innerHTML = '<option value="all">All Leagues</option>';
+
   data.response.forEach(l => {
-    select.innerHTML += `<option value="${l.league.id}">${l.league.name} (${l.country.name})</option>`;
+    if(l.seasons && l.seasons.length > 0){
+      select.innerHTML += `<option value="${l.league.id}">${l.league.name} (${l.country.name})</option>`;
+    }
   });
 }
 
@@ -59,6 +66,7 @@ function changeLeague() {
   loadMatches();
 }
 
+// Load live matches
 async function loadMatches() {
   let url = currentLeague === "all"
     ? "https://v3.football.api-sports.io/fixtures?live=all"
@@ -127,9 +135,10 @@ function displayPlayers(lineups) {
 
 function closePopup() { document.getElementById("popup").style.display = "none"; }
 
-// First load
+// Initial load
 loadMatches();
 setInterval(loadMatches, 60000);
 </script>
+
 </body>
 </html>
